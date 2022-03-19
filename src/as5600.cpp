@@ -1,13 +1,13 @@
-#include "as5600.h"
 #include "Arduino.h"
+#include "as5600.h"
 
 #define AS5600_ADDR 0x36
 #define STATUS_ADDR 0x0B
 #define AGC_ADDR 0x1A
 
 struct __attribute__((__packed__)) statusFlags {
-  uint8_t 
-          : 2, 
+  uint8_t
+          : 2,
         MD: 1,
         ML: 1,
         MH: 1;
@@ -61,7 +61,7 @@ void AS5600::update() {
   Wire.beginTransmission(AS5600_ADDR);
   Wire.write(STATUS_ADDR);
   Wire.endTransmission();
-  
+
   Wire.requestFrom(AS5600_ADDR, 5);
   for (int i = 0; i < 5; i++) {
     Registers.data[i] = Wire.read();
@@ -70,7 +70,7 @@ void AS5600::update() {
   Wire.beginTransmission(AS5600_ADDR);
   Wire.write(AGC_ADDR);
   Wire.endTransmission();
-  
+
   Wire.requestFrom(AS5600_ADDR, 3);
   for (int i = 5; i < 8; i++) {
     while (!Wire.available());
@@ -97,7 +97,7 @@ int AS5600::isAgcOverflow() {
 }
 
 bool AS5600::hasMagnet() {
-  return Registers.regs.flags.MD;  
+  return Registers.regs.flags.MD;
 }
 
 AS5600 as5600;
