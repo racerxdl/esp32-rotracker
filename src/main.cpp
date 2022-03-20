@@ -40,16 +40,12 @@ void setup() {
   } else {
     Log::println("M;Magnet not found in encoder. Check azimuth magnet position.");
   }
-
   Log::println("M;Done");
+  CmdInit();
 }
 
 void loop() {
-  stepLoop();
   WiFiLoop();
-
-  if (Serial.available() >= 1) {
-    String cmd = Serial.readStringUntil('\n');
-    runCommand(cmd);
-  }
+  CmdLoop();
+  StepLoop();
 }

@@ -5,7 +5,7 @@
 #define AZ_DRIVER_ADDRESS 0b10    // TMC2209 Driver address according to MS1 and MS2
 
 // Ohms
-#define R_SENSE 0.11f 
+#define R_SENSE 0.11f
 
 #define EL_STEP_PIN      33 // Step
 #define EL_DIR_PIN       32 // Direction
@@ -21,7 +21,7 @@
 
 // Axis Config
 #define EL_STEPS_PER_DEG 344.00f
-#define AZ_STEPS_PER_DEG 173.55f
+#define AZ_STEPS_PER_DEG 174.74f
 #define EL_MICROSTEP 2
 #define AZ_MICROSTEP 2
 

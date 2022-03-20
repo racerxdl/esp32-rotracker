@@ -26,14 +26,14 @@ void initSteppers() {
 
   pinMode(EN_PIN, OUTPUT);
   setEnableMotors(false);
-  
+
   Serial.printf("M;Initializing elevation axis MicroStepping: %2d - Current %04d mA\r\n", GetElevationMicrosteps(), GetElevationMotorCurrent());
   // Init Elevation
   pinMode(EL_STEP_PIN, OUTPUT);
-  elDriver.begin();                 
-  elDriver.toff(10);                
+  elDriver.begin();
+  elDriver.toff(10);
   elDriver.rms_current(GetElevationMotorCurrent()); // Set motor RMS current
-  elDriver.microsteps(GetElevationMicrosteps());               
+  elDriver.microsteps(GetElevationMicrosteps());
 
   elDriver.blank_time(24);
   elDriver.en_spreadCycle(true);
@@ -48,10 +48,10 @@ void initSteppers() {
   Serial.printf("M;Initializing azimuth axis MicroStepping: %2d - Current %04d mA\r\n", GetAzimuthMicrosteps(), GetAzimuthMotorCurrent());
   // Init Azimuth
   pinMode(AZ_STEP_PIN, OUTPUT);
-  azDriver.begin();                 
-  azDriver.toff(10);                
+  azDriver.begin();
+  azDriver.toff(10);
   azDriver.rms_current(GetAzimuthMotorCurrent());  // Set motor RMS current
-  azDriver.microsteps(GetAzimuthMicrosteps());           
+  azDriver.microsteps(GetAzimuthMicrosteps());
 
   azDriver.blank_time(24);
   azDriver.en_spreadCycle(true);    // Toggle spreadCycle on TMC2208/2209/2224
@@ -82,7 +82,7 @@ void setElCurrentPosition(int steps) {
   elStepper.setCurrentPosition(steps);
 }
 
-void stepLoop() {
+void StepLoop() {
   elStepper.run();
   azStepper.run();
 }

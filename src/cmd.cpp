@@ -3,9 +3,7 @@
 #include "storage.h"
 #include "wifi.h"
 #include "log.h"
-
-float elPos;
-float azPos;
+#include "rotlibtcp.h"
 
 String strip(String src) {
   int R = src.indexOf("\r");
@@ -17,7 +15,7 @@ String strip(String src) {
   if (R == -1) { // N isnt -1
     return src.substring(0, N);
   }
-  
+
   if (R > N) { // \n is first
     return src.substring(0, N);
   }
@@ -36,17 +34,9 @@ String firstParam(String src, int *indexOut) {
 }
 
 void printPos() {
-  char buff[64];
-  
-  elPos = elStepToDeg(getElStepper().currentPosition());
-  azPos = azStepToDeg(getAzStepper().currentPosition());
-  sprintf(buff, "%.6f\n%.6f\nRPRT 0", azPos, elPos);
-//  for (int i = 0; i < 64; i++) {
-//    if (buff[i] == '.') {
-//      buff[i] = ',';
-//    }
-//  }
-  Log::println("%s", buff);
+  float elPos = elStepToDeg(getElStepper().currentPosition());
+  float azPos = azStepToDeg(getAzStepper().currentPosition());
+  Log::println("%.6f\n%.6f\nRPRT 0", azPos, elPos);
 }
 
 void gotoPosition(String cmdData) {
@@ -96,30 +86,44 @@ void calibAz() {
   float startAngle = getAzEncoder().getAngle();
   Log::println("M;Starting angle: ");
   Log::println(String(startAngle).c_str());
-  float calibAngle = startAngle + 45;
+  float calibAngle = startAngle + 60;
   float currentAngle = startAngle;
   long startStepPos = getAzStepper().currentPosition();
   long pos = getAzStepper().currentPosition();
-  while (currentAngle < calibAngle) {
-    pos += 10;
+  Log::println("M;Coarse Angle Moving");
+  while (calibAngle - currentAngle > 5) { // Move faster for > 5 degrees diference
+    pos += 200;
     getAzStepper().moveTo(pos);
     while (getAzStepper().currentPosition() != pos) {
-      stepLoop();
+      StepLoop();
+      yield();
     }
     getAzEncoder().update();
     currentAngle = getAzEncoder().getAngle();
     Log::println("M;Angle: %.2f - Steps: %d", currentAngle, pos - startStepPos);
   }
-  
+  Log::println("M;Fine Angle Moving");
+  while (currentAngle < calibAngle) {
+    pos += 10;
+    getAzStepper().moveTo(pos);
+    while (getAzStepper().currentPosition() != pos) {
+      StepLoop();
+      yield();
+    }
+    getAzEncoder().update();
+    currentAngle = getAzEncoder().getAngle();
+    Log::println("M;Angle: %.2f - Steps: %d", currentAngle, pos - startStepPos);
+  }
+
   getAzEncoder().update();
   currentAngle = getAzEncoder().getAngle();
-  
+
   float deltaAngle = currentAngle - startAngle;
   long deltaSteps = pos - startStepPos;
   Log::println("M;Delta Angle: %.2f - Delta Steps: %d", deltaAngle, deltaSteps);
-  
+
   float stepsPerDeg = deltaSteps / deltaAngle;
-  Log::println("M;Steps per degree: %d", stepsPerDeg);
+  Log::println("M;Steps per degree: %f", stepsPerDeg);
 }
 
 void zeroAngles() {
@@ -152,21 +156,29 @@ void setOTAPass(String cmdData) {
   SaveOTAPassword(pass);
 }
 
+void reboot() {
+  Log::println("M;Disconnecting all clients");
+  disconnectAll();
+  Log::println("M;Rebooting");
+  ESP.restart();
+}
+
 void runCommand(String cmdData) {
   int stripPos;
   String cmd = firstParam(cmdData, &stripPos);
   cmdData = cmdData.substring(stripPos+1);
-  
-  if (cmd == "get_pos")       { printPos();             } else 
-  if (cmd == "set_pos")       { gotoPosition(cmdData);  } else 
-  if (cmd == "stop")          { stopRotor();            } else 
-  if (cmd == "park")          { parkRotor();            } else 
-  if (cmd == "calib_az")      { calibAz();              } else 
+
+  if (cmd == "get_pos")       { printPos();             } else
+  if (cmd == "set_pos")       { gotoPosition(cmdData);  } else
+  if (cmd == "stop")          { stopRotor();            } else
+  if (cmd == "park")          { parkRotor();            } else
+  if (cmd == "calib_az")      { calibAz();              } else
   if (cmd == "zero_angles")   { zeroAngles();           } else
   if (cmd == "set_ssid")      { setSSID(cmdData);       } else
   if (cmd == "set_wifipass")  { setWifiPass(cmdData);   } else
   if (cmd == "set_hostname")  { setHostname(cmdData);   } else
   if (cmd == "set_otapass")   { setOTAPass(cmdData);    } else
+  if (cmd == "reboot")        { reboot();               } else
   if (cmd == "get_info")      { printInfo();            } else {
     // Short version of commands
     switch (cmd[0]) {
@@ -176,6 +188,24 @@ void runCommand(String cmdData) {
       case 'K': parkRotor();            break;
       case '_': printInfo();            break;
       default:  printCmdUnknown();
+    }
+  }
+}
+String inputString = "";
+void CmdInit() {
+  inputString.reserve(200);
+}
+
+void CmdLoop() {
+  while (Serial.available()) {
+    char inChar = (char)Serial.read();
+    if (inChar != '\r' && inChar != '\n') {
+      inputString += inChar;
+    }
+
+    if (inChar == '\n') {
+      runCommand(inputString);
+      inputString = "";
     }
   }
 }
