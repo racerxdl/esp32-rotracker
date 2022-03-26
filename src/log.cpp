@@ -12,7 +12,7 @@ void Log::printf(const char* format, ...) {
   vsnprintf(buffer, BUFFER_SIZE, format, argptr);
   va_end(argptr);
   Serial.print(buffer);
-  broadcastTcpMessage(String(buffer));
+  rotLibBroadcastTcpMessage(String(buffer));
 }
 
 void Log::println(const char* format, ...) {
@@ -23,5 +23,5 @@ void Log::println(const char* format, ...) {
   vsnprintf(buffer, BUFFER_SIZE, str.c_str(), argptr);
   va_end(argptr);
   Serial.print(buffer);
-  broadcastTcpMessage(String(buffer));
+  rotLibBroadcastTcpMessage(String(buffer));
 }

@@ -82,7 +82,7 @@ void setElCurrentPosition(int steps) {
   elStepper.setCurrentPosition(steps);
 }
 
-void StepLoop() {
+void updateSteppers() {
   elStepper.run();
   azStepper.run();
 }

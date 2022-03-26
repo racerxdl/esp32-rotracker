@@ -57,7 +57,6 @@ uint8_t AS5600::readByte(uint8_t addr) {
 }
 
 void AS5600::update() {
-  uint8_t tmp;
   Wire.beginTransmission(AS5600_ADDR);
   Wire.write(STATUS_ADDR);
   Wire.endTransmission();

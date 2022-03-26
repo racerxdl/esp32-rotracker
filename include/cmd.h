@@ -9,5 +9,5 @@ void printInfo();
 void calibAz();
 void zeroAngles();
 void runCommand(String cmd);
-void CmdLoop();
-void CmdInit();
+void updateCmd();
+void initCmd();

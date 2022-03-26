@@ -1,11 +1,5 @@
 #pragma once
 
-void SetupWiFi();
-int getDay();
-unsigned long getEpoch();
-int getHours();
-int getMinutes();
-int getSeconds();
+void initWiFi();
 bool InOTA();
-
-void WiFiLoop();
+void updateWiFi();

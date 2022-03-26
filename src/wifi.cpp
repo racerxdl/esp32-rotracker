@@ -1,53 +1,24 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <NTPClient.h>
 #include <ArduinoOTA.h>
-#include <WiFiUdp.h>
+#include "esp_sntp.h"
+
 #include "wifi.h"
 #include "storage.h"
 #include "rotlibtcp.h"
 #include "log.h"
+#include "stellarium.h"
 
 String ssid     = "";
 String password = "";
 String otaPassword = "";
 String hostname = "";
 
-WiFiUDP ntpUDP;
-
-int16_t utc = -3; // UTC -3:00 Brazil
-uint32_t currentMillis = 0;
-uint32_t previousMillis = 0;
-
-NTPClient timeClient(ntpUDP, "pool.ntp.br", utc*3600, 60000);
-
-long lastUpdate = 0;
-
+int lastProgress = -1;
 bool inOTA = false;
 
-int getHours() {
-  return timeClient.getHours();
-}
-
-int getMinutes() {
-  return timeClient.getMinutes();
-}
-
-int getSeconds() {
-  return timeClient.getSeconds();
-}
-
-int getDay() {
-  return timeClient.getDay();
-}
-
-unsigned long getEpoch() {
-  return timeClient.getEpochTime();
-}
-
-int lastProgress = -1;
-
-void SetupWiFi() {
+void initWiFi() {
+  sntp_servermode_dhcp(1);
   ssid = GetWifiSSID();
   password = GetWifiPassword();
   hostname = GetHostname();
@@ -133,7 +104,8 @@ void SetupWiFi() {
 
   ArduinoOTA.onEnd([]() {
     Log::println("M;OTA Update End");
-    disconnectAll();
+    rotLibDisconnectAll();
+    stellariumDisconnectAll();
   });
 
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
@@ -155,18 +127,9 @@ void SetupWiFi() {
   });
   ArduinoOTA.setPassword(otaPassword.c_str());
   ArduinoOTA.begin();
-
-  // NTP
-  timeClient.begin();
-  timeClient.update();
-  Log::println("M;Current time is %02d:%02d epoch %lu", getHours(), getMinutes(), getEpoch());
 }
 
-void WiFiLoop() {
-  if (millis() - lastUpdate > 30000) {
-    timeClient.update();
-    lastUpdate = millis();
-  }
+void updateWiFi() {
   ArduinoOTA.handle();
 }
 

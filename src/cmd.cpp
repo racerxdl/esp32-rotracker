@@ -2,8 +2,18 @@
 #include "as5600.h"
 #include "storage.h"
 #include "wifi.h"
+#include "clock.h"
 #include "log.h"
 #include "rotlibtcp.h"
+#include "stellarium.h"
+
+const char *availableCommands[] = {
+  "get_pos", "set_pos", "stop", "park","calib_az",
+  "zero_angles", "set_ssid", "set_wifipass", "set_hostname",
+  "set_otapass", "reboot", "set_latlon", "set_timezone",
+  "set_azoffset", "set_eloffset", "get_info", "help",
+  NULL
+};
 
 String strip(String src) {
   int R = src.indexOf("\r");
@@ -54,7 +64,7 @@ void gotoPosition(String cmdData) {
   float azTarget = tmp1.toFloat();
   String tmp2 = cmdData.substring(cmdData.indexOf(" "));
   float elTarget = tmp2.toFloat();
-  Log::println("M;Target set to %.2f;%.2f", elTarget, azTarget);
+  Log::println("M;Target set to %.2f;%.2f", azTarget, elTarget);
   getElStepper().moveTo(elDegToStep(elTarget));
   getAzStepper().moveTo(azDegToStep(azTarget));
 }
@@ -76,8 +86,26 @@ void parkRotor() {
 }
 
 void printInfo() {
+  getAzEncoder().update();
+  float azEncoderAngle = getAzEncoder().getAngle();
+
   Log::println("M;Teske's Lab Rotor Controller");
   Log::println("M;Current time is %02d:%02d epoch %d", getHours(), getMinutes(), getEpoch());
+  Log::println("M;Current timezone is %s", GetTimeOffset());
+  Log::println("M;Current Sideral Time is %.4f", getSideralTime());
+  Log::println("M;Configured WiFi SSID is %s", GetWifiSSID());
+  Log::println("M;Azimuth Offset: %3d - Elevation Offset: %3d", GetAzimuthOffset(), GetElevationOffset());
+  Log::println("M;Azimuth Current: %4d mA - Elevation Current: %4d mA", GetAzimuthMotorCurrent(), GetElevationMotorCurrent());
+  Log::println("M;Current Azimuth Encoder Angle is %3.2f degrees", azEncoderAngle);
+  Log::printf("M;Available commands: ");
+  int i = 0;
+  const char *v = availableCommands[i];
+  while (v != NULL) {
+    Log::printf("%s,", v);
+    i++;
+    v = availableCommands[i];
+  }
+  Log::println("");
 }
 
 void calibAz() {
@@ -87,6 +115,11 @@ void calibAz() {
   Log::println("M;Starting angle: ");
   Log::println(String(startAngle).c_str());
   float calibAngle = startAngle + 60;
+
+  if (calibAngle > 359) {
+    calibAngle = 359;
+  }
+
   float currentAngle = startAngle;
   long startStepPos = getAzStepper().currentPosition();
   long pos = getAzStepper().currentPosition();
@@ -95,7 +128,7 @@ void calibAz() {
     pos += 200;
     getAzStepper().moveTo(pos);
     while (getAzStepper().currentPosition() != pos) {
-      StepLoop();
+      updateSteppers();
       yield();
     }
     getAzEncoder().update();
@@ -107,7 +140,7 @@ void calibAz() {
     pos += 10;
     getAzStepper().moveTo(pos);
     while (getAzStepper().currentPosition() != pos) {
-      StepLoop();
+      updateSteppers();
       yield();
     }
     getAzEncoder().update();
@@ -158,9 +191,41 @@ void setOTAPass(String cmdData) {
 
 void reboot() {
   Log::println("M;Disconnecting all clients");
-  disconnectAll();
+  rotLibDisconnectAll();
+  stellariumDisconnectAll();
   Log::println("M;Rebooting");
   ESP.restart();
+}
+
+void setLatLon(String cmdData) {
+  int firstParamIndex = cmdData.indexOf(" ");
+  String tmp1 = cmdData.substring(0, firstParamIndex);
+  cmdData = cmdData.substring(firstParamIndex);
+  String tmp2 = cmdData.substring(cmdData.indexOf(" "));
+
+  float lat = tmp1.toFloat();
+  float lon = tmp2.toFloat();
+
+  SaveLatitude(lat);
+  SaveLongitude(lon);
+  Log::println("M;LatLon set to %.6f;%.6f", lat, lon);
+}
+
+void setTimezone(String timezone) {
+  SaveTimeOffset(timezone.c_str());
+  Log::println("M;Timezone set to %s", timezone.c_str());
+}
+
+void setAzOffset(String offset) {
+  float off = offset.toInt();
+  SaveAzimuthOffset(off);
+  Log::println("M;Azimuth offset set to %d", off);
+}
+
+void setElOffset(String offset) {
+  float off = offset.toInt();
+  SaveElevationOffset(off);
+  Log::println("M;Elevation offset set to %d", off);
 }
 
 void runCommand(String cmdData) {
@@ -179,7 +244,12 @@ void runCommand(String cmdData) {
   if (cmd == "set_hostname")  { setHostname(cmdData);   } else
   if (cmd == "set_otapass")   { setOTAPass(cmdData);    } else
   if (cmd == "reboot")        { reboot();               } else
-  if (cmd == "get_info")      { printInfo();            } else {
+  if (cmd == "set_latlon")    { setLatLon(cmdData);     } else
+  if (cmd == "set_timezone")  { setTimezone(cmdData);   } else
+  if (cmd == "set_azoffset")  { setAzOffset(cmdData);   } else
+  if (cmd == "set_eloffset")  { setElOffset(cmdData);   } else
+  if (cmd == "get_info")      { printInfo();            } else
+  if (cmd == "help")          { printInfo();            } else {
     // Short version of commands
     switch (cmd[0]) {
       case 'p': printPos();             break;
@@ -192,11 +262,11 @@ void runCommand(String cmdData) {
   }
 }
 String inputString = "";
-void CmdInit() {
+void initCmd() {
   inputString.reserve(200);
 }
 
-void CmdLoop() {
+void updateCmd() {
   while (Serial.available()) {
     char inChar = (char)Serial.read();
     if (inChar != '\r' && inChar != '\n') {

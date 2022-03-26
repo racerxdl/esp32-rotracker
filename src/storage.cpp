@@ -6,6 +6,7 @@
 #define SSID_LENGTH     64
 #define PASSWORD_LENGTH 64
 #define HOSTNAME_LENGTH 64
+#define TIMEZONE_LENGTH 32
 
 CRC32 crc;
 
@@ -20,11 +21,20 @@ struct Config {
   float AzimuthStepsPerDeg;
   uint16_t AzimuthMotorCurrent;
   uint8_t AzimuthMicrosteps;
-  
+
   float ElevationStepsPerDeg;
   uint16_t ElevationMotorCurrent;
   uint8_t ElevationMicrosteps;
-  
+
+  int elevationOffset;
+  int azimuthOffset;
+
+  float latitude;
+  float longitude;
+  char timeOffset[TIMEZONE_LENGTH]; // UTC offset
+
+  char padding[256]; // If fields added, decrement the number by the size of added fields
+
   uint32_t CRC;
 } currentConfig;
 
@@ -56,6 +66,13 @@ void ConfigDefaults() {
   currentConfig.ElevationMotorCurrent = EL_RMS_CURRENT;
   currentConfig.AzimuthMicrosteps = AZ_MICROSTEP;
   currentConfig.ElevationMicrosteps = EL_MICROSTEP;
+
+  currentConfig.elevationOffset = 0;
+  currentConfig.azimuthOffset = 0;
+
+  currentConfig.latitude = 0;
+  currentConfig.longitude = 0;
+  memset(currentConfig.timeOffset, 0, TIMEZONE_LENGTH);
 }
 
 void ReadConfig() {
@@ -84,12 +101,28 @@ void SaveConfig() {
   currentConfig.Hostname[HOSTNAME_LENGTH-1] = 0x00;
 
   updateCRC();
-  
+
   char *c = (char *)(&currentConfig);
   for (int i=0; i<ConfigLength;i++) {
     EEPROM.write(i, c[i]);
   }
   EEPROM.commit();
+}
+
+int GetElevationOffset() {
+  return currentConfig.elevationOffset;
+}
+int GetAzimuthOffset() {
+  return currentConfig.azimuthOffset;
+}
+float GetLatitude() {
+  return currentConfig.latitude;
+}
+float GetLongitude() {
+  return currentConfig.latitude;
+}
+const char *GetTimeOffset() {
+  return currentConfig.timeOffset;
 }
 
 String GetWifiSSID() {
@@ -194,7 +227,29 @@ void SaveElevationStepsPerDeg(float stepsPerDeg) {
   SaveConfig();
 }
 
-void InitStorage() {
+void SaveLatitude(float latitude) {
+  currentConfig.latitude = latitude;
+  SaveConfig();
+}
+void SaveLongitude(float longitude) {
+  currentConfig.latitude = longitude;
+  SaveConfig();
+}
+void SaveTimeOffset(const char *timeoffset) {
+  memset(currentConfig.timeOffset, 0, TIMEZONE_LENGTH);
+  strncpy(currentConfig.timeOffset, timeoffset, TIMEZONE_LENGTH);
+  SaveConfig();
+}
+void SaveElevationOffset(int offset) {
+  currentConfig.elevationOffset = offset;
+  SaveConfig();
+}
+void SaveAzimuthOffset(int offset) {
+  currentConfig.azimuthOffset = offset;
+  SaveConfig();
+}
+
+void initStorage() {
   EEPROM.begin(ConfigLength);
   ReadConfig();
 }

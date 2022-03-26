@@ -8,8 +8,11 @@
 #include "wifi.h"
 #include "rotlibtcp.h"
 #include "log.h"
+#include "clock.h"
+#include "stellarium.h"
 
 void setup() {
+  delay(2000); // For ESP32 that fails to boot properly when flashing
   Serial.begin(115200);
   Log::println("M;Initializing");
   Wire.begin();
@@ -19,12 +22,14 @@ void setup() {
   }
 
   Log::println("M;Initializing storage");
-  InitStorage();
+  initStorage();
 
   Log::println("M;Initializing wifi");
-  SetupWiFi();
+  initWiFi();
+  initClock();
 
   initRotlibTCP();
+  initStellarium();
 
   Log::println("M;Initializing Steppers");
   initSteppers();
@@ -41,11 +46,13 @@ void setup() {
     Log::println("M;Magnet not found in encoder. Check azimuth magnet position.");
   }
   Log::println("M;Done");
-  CmdInit();
+  initCmd();
 }
 
 void loop() {
-  WiFiLoop();
-  CmdLoop();
-  StepLoop();
+  updateWiFi();
+  updateClock();
+  updateCmd();
+  updateSteppers();
+  updateStellarium();
 }

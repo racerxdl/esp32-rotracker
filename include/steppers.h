@@ -6,7 +6,7 @@
 #include "config.h"
 
 void initSteppers();
-void StepLoop();
+void updateSteppers();
 void setEnableMotors(bool enabled);
 
 uint16_t getElCurrent();
